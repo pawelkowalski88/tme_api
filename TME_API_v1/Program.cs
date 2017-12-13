@@ -19,33 +19,37 @@ namespace TME_API_v1
         {
             Console.WriteLine("TME API Start\n");
             List<String> ProductIdentifiers = new List<string>() { "NE555D", "1N4007-DC", "16CTU04PBF", "1N4001-DCO" };
-            ResponseModel.response Response = APIGetPrices(ProductIdentifiers);
-            PrintResults(Response);
+            Task<GetPricesAndStock.response> ResponseTask = Task.Run(() => APIGetPrices(ProductIdentifiers));
+            PrintResults(ResponseTask.Result);
             Console.ReadKey();
         }
 
-        static ResponseModel.response APIGetPrices(List<String> products)
+        static async Task<GetPricesAndStock.response> APIGetPrices(List<String> products)
         {
-            string Url = "https://api.tme.eu/Products/GetPrices.xml";
+            //Set the API URL, security and creating the HTTP client
+            string Url = "https://api.tme.eu/Products/GetPricesAndStocks.xml";
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             HttpClient MainClient = new HttpClient();
 
+            //Converting the product list into http parameters
             List<KeyValuePair<string, string>> ParamList = CreateParametersList(products);
 
+            //Generating the signature
             byte[] key = Encoding.ASCII.GetBytes("9cdcef850cfbdfa01b26");
             byte[] input = Encoding.ASCII.GetBytes(CreateSignatureFromParameters(Url, ParamList));
             string Signature = EncodeSignature(input, key);
 
+            //Adding the signature to the parameter list
             ParamList.Add(new KeyValuePair<string, string>("ApiSignature", Signature));
-
-            FormUrlEncodedContent Content = new FormUrlEncodedContent(ParamList);
-            Task<HttpResponseMessage> HttpsResponseTask = Task.Run(() => MainClient.PostAsync(Url, Content));
-            HttpResponseMessage HttpsResponse = HttpsResponseTask.Result;
 
             try
             {
-                Task<Stream> ReadResponseStreamTask = Task.Run(() => HttpsResponse.Content.ReadAsStreamAsync());
-                return SerializeResponseContent(ReadResponseStreamTask.Result);
+                //Executing the HTTP POST request and receiving the answer.
+                FormUrlEncodedContent Content = new FormUrlEncodedContent(ParamList);
+                HttpResponseMessage HttpsResponse = await MainClient.PostAsync(Url, Content);
+                //String res = await HttpsResponse.Content.ReadAsStringAsync();
+                //Console.WriteLine(res);
+                return SerializeResponseContent(await HttpsResponse.Content.ReadAsStreamAsync());
             }
 
             catch (Exception e)
@@ -54,7 +58,6 @@ namespace TME_API_v1
                 return null;
             }
         }
-
 
         static string EncodeSignature(byte[] signaturebase, byte[] secret)
         {
@@ -66,12 +69,12 @@ namespace TME_API_v1
             return Convert.ToBase64String(hashValue);
         }
 
-        static ResponseModel.response SerializeResponseContent(Stream content)
+        static GetPricesAndStock.response SerializeResponseContent(Stream content)
         {
-            XmlSerializer serializer = new XmlSerializer(typeof(ResponseModel.response));
+            XmlSerializer serializer = new XmlSerializer(typeof(GetPricesAndStock.response));
             serializer.UnknownNode += new XmlNodeEventHandler(serializer_UnknownNode);
             serializer.UnknownAttribute += new XmlAttributeEventHandler(serializer_UnknownAttribute);
-            ResponseModel.response Response = (ResponseModel.response)serializer.Deserialize(content);
+            GetPricesAndStock.response Response = (GetPricesAndStock.response)serializer.Deserialize(content);
             return Response;
         }
 
@@ -116,9 +119,9 @@ namespace TME_API_v1
             return SignatureBase.ToString();
         }
 
-        static void PrintResults(ResponseModel.response response)
+        static void PrintResults(GetPricesAndStock.response response)
         {
-            if (response.Data.ProductList == null) return;
+            if (response == null) return;
             foreach (var p in response.Data.ProductList)
             {
                 Console.WriteLine(p.Symbol);
@@ -128,6 +131,8 @@ namespace TME_API_v1
                 {
                     Console.WriteLine(price.Amount + "; " + price.PriceValue);
                 }
+                Console.WriteLine();
+                Console.WriteLine(String.Format("W magazynie: {0}", p.Amount.ToString()));
                 Console.WriteLine("\n");
             }
         }

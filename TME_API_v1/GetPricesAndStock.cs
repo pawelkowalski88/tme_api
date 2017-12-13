@@ -6,14 +6,15 @@ using System.Threading.Tasks;
 
 namespace TME_API_v1
 {
-    public class ResponseModel
+    public class GetPricesAndStock
     {
+
         /// <remarks/>
         [System.SerializableAttribute()]
         [System.ComponentModel.DesignerCategoryAttribute("code")]
         [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true)]
         [System.Xml.Serialization.XmlRootAttribute(Namespace = "", IsNullable = false)]
-        public partial class GetPrices
+        public partial class response
         {
 
             private string statusField;
@@ -133,6 +134,8 @@ namespace TME_API_v1
 
             private string vatTypeField;
 
+            private uint amountField;
+
             /// <remarks/>
             public string Symbol
             {
@@ -196,6 +199,19 @@ namespace TME_API_v1
                 set
                 {
                     this.vatTypeField = value;
+                }
+            }
+
+            /// <remarks/>
+            public uint Amount
+            {
+                get
+                {
+                    return this.amountField;
+                }
+                set
+                {
+                    this.amountField = value;
                 }
             }
         }
@@ -267,8 +283,6 @@ namespace TME_API_v1
                 }
             }
         }
-
-        
 
     }
 }
